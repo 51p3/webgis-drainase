@@ -1,0 +1,32 @@
+FROM php:8.3-fpm-alpine AS base
+
+RUN apk update && apk add --no-cache \
+    postgresql-dev \
+    libpq \
+    git \
+    curl \
+    zip \
+    unzip
+
+RUN docker-php-ext-install pdo pdo_pgsql opcache
+
+WORKDIR /var/www/backend
+
+FROM base AS builder
+
+COPY composer.json composer.lock ./
+
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+RUN composer install --no-interaction --optimize-autoloader --no-dev
+
+FROM base
+
+COPY --from=builder /var/www/backend/vendor ./vendor
+COPY . .
+
+RUN chown -R www-data:www-data /var/www/backend && chmod -R 755 /var/www/backend/storage
+
+EXPOSE 9000
+
+CMD ["php-fpm"]
