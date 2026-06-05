@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: webgis_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend/dist:/var/www/frontend:ro
+      - ./backend/public:/var/www/backend/public:ro
+      - ./nginx/logs:/var/log/nginx
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - backend
+    networks:
+      - webgis_network
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: webgis_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    networks:
+      - webgis_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: webgis_backend
+    restart: always
+    environment:
+      - DB_CONNECTION=pgsql
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=${APP_URL}
+    volumes:
+      - ./backend/storage:/var/www/backend/storage
+      - ./backend/bootstrap/cache:/var/www/backend/bootstrap/cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - webgis_network
+    expose:
+      - "8000"
+
+  redis:
+    image: redis:7-alpine
+    container_name: webgis_redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - webgis_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  webgis_network:
+    driver: bridge

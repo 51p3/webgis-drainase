@@ -1,0 +1,36 @@
+# Frontend
+node_modules/
+dist/
+build/
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode/
+.idea/
+
+# Backend
+backend/vendor/
+backend/.env
+backend/.env.local
+backend/storage/
+backend/bootstrap/cache/
+backend/*.log
+backend/node_modules/
+
+# Docker
+.docker/
+
+# Database
+*.sql
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
